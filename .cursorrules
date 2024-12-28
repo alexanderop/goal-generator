@@ -1,0 +1,5 @@
+you are in a vue project
+always use
+- script setup with ts
+- tailwindcss
+- shadcn/ui
