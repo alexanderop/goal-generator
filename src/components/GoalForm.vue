@@ -53,6 +53,10 @@ const COUNTRY_FLAGS: Record<string, string> = {
 }
 
 function addCountryFlag(text: string): string | null {
+  // First check if the text already contains any country flag emoji
+  const hasFlag = /[\u{1F1E6}-\u{1F1FF}]{2}/u.test(text)
+  if (hasFlag) return null
+
   for (const [country, flag] of Object.entries(COUNTRY_FLAGS)) {
     const regex = new RegExp(`\\b${country}\\b`, 'i')
     if (regex.test(text))
@@ -96,7 +100,7 @@ function parseGoals(input: string): Goal[] {
         // Only add flag if it's in the travel category
         if (currentCategory === 'travel') {
           const flag = addCountryFlag(cleanText)
-          if (flag) {
+          if (flag && !cleanText.includes(flag)) {
             cleanText = `${flag} ${cleanText}`
           }
         }
