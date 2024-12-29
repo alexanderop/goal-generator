@@ -25,10 +25,6 @@ const textColors = computed(() => ({
   '--text-category': 'rgba(255, 255, 255, 0.8)',
 }))
 
-const hasBackgroundImage = computed(() =>
-  props.customization?.image?.position === 'background',
-)
-
 const cardStyle = computed(() => ({
   '--theme-primary': currentTheme.value.primary,
   '--theme-secondary': currentTheme.value.secondary,
@@ -37,11 +33,9 @@ const cardStyle = computed(() => ({
   '--gradient-from': currentTheme.value.gradientFrom,
   '--gradient-via': currentTheme.value.gradientVia,
   '--gradient-to': currentTheme.value.gradientTo,
-  '--card-bg': props.customization?.image
-    ? 'hsl(222.2 84% 4.9%)'
-    : 'radial-gradient(ellipse at top right, var(--gradient-from), var(--gradient-via), var(--gradient-to)), hsl(222.2 84% 4.9%)',
-  '--overlay-opacity': hasBackgroundImage.value ? '0.85' : '0.65',
-  '--text-shadow-color': hasBackgroundImage.value ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.4)',
+  '--card-bg': 'radial-gradient(ellipse at top right, var(--gradient-from), var(--gradient-via), var(--gradient-to)), hsl(222.2 84% 4.9%)',
+  '--overlay-opacity': '0.65',
+  '--text-shadow-color': 'rgba(0, 0, 0, 0.4)',
   ...textColors.value,
 }))
 
@@ -192,30 +186,6 @@ function extractFlag(text: string): { flag: string | null, cleanText: string } {
     ]"
     :style="cardStyle"
   >
-    <!-- Background Image -->
-    <div
-      v-if="props.customization?.image"
-      class="absolute inset-0 z-0"
-      :class="{
-        'opacity-30': props.customization.image.position === 'background',
-        'h-1/3 opacity-50': props.customization.image.position === 'top' || props.customization.image.position === 'bottom',
-        'top-0': props.customization.image.position === 'top',
-        'bottom-0': props.customization.image.position === 'bottom',
-      }"
-    >
-      <img
-        :src="props.customization.image.url"
-        class="w-full h-full object-cover"
-        :class="{
-          'blur-[2px]': props.customization.image.position === 'background',
-        }"
-      >
-      <div
-        v-if="props.customization.image.position === 'background'"
-        class="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/80"
-      />
-    </div>
-
     <!-- Enhanced decorative elements -->
     <div
       v-if="!props.customization?.image"
@@ -241,12 +211,7 @@ function extractFlag(text: string): { flag: string | null, cleanText: string } {
     />
 
     <CardHeader
-      class="text-center space-y-6 pb-8 sticky -top-6 -mx-6 sm:-mx-8 lg:-mx-10 px-6 sm:px-8 lg:px-10 pt-6 z-20"
-      :class="[
-        hasBackgroundImage
-          ? 'bg-background/90 backdrop-blur-xl border-b border-white/5'
-          : 'bg-background/80 backdrop-blur-lg border-b border-white/5',
-      ]"
+      class="text-center space-y-6 pb-8 sticky -top-6 -mx-6 sm:-mx-8 lg:-mx-10 px-6 sm:px-8 lg:px-10 pt-6 z-20 bg-background/80 backdrop-blur-lg border-b border-white/5"
     >
       <div class="space-y-4">
         <!-- Vision Board label -->
@@ -323,9 +288,6 @@ function extractFlag(text: string): { flag: string | null, cleanText: string } {
               :key="goal.id"
               class="goal-item relative flex items-center pl-4 py-3 rounded-xl transition-all duration-300"
               :class="[
-                hasBackgroundImage
-                  ? 'bg-black/50 hover:bg-black/60'
-                  : 'bg-gradient-to-r from-gray-900/30 to-gray-800/20 hover:from-gray-800/40 hover:to-gray-800/30',
                 { 'opacity-85': goal.completed },
               ]"
             >
