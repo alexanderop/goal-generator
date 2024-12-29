@@ -3,6 +3,7 @@ export interface Goal {
   text: string
   category: string
   completed: boolean
+  priority: 'must' | 'nice' | 'normal'
   progress?: {
     current: number
     total: number

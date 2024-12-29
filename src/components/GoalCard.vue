@@ -191,6 +191,25 @@ function isEmoji(str: string): boolean {
   const emojiRegex = /\p{Emoji}/u
   return emojiRegex.test(str)
 }
+
+function formatGoalText(goal: Goal): string {
+  let text = goal.text
+
+  // Remove priority markers from display text
+  if (goal.priority === 'must' && text.startsWith('! ')) {
+    text = text.slice(2)
+  }
+  else if (goal.priority === 'nice' && text.startsWith('~ ')) {
+    text = text.slice(2)
+  }
+
+  // Handle travel category with flags
+  if (goal.category === 'travel') {
+    return extractFlag(text).cleanText
+  }
+
+  return text
+}
 </script>
 
 <template>
@@ -304,6 +323,8 @@ function isEmoji(str: string): boolean {
               class="goal-item relative flex items-center pl-4 py-3 rounded-xl transition-all duration-300"
               :class="[
                 { 'opacity-85': goal.completed },
+                goal.priority === 'must' && 'border-l-4 border-primary',
+                goal.priority === 'nice' && 'border-l-4 border-muted',
               ]"
             >
               <!-- Category Icon or Flag -->
@@ -331,23 +352,48 @@ function isEmoji(str: string): boolean {
               <div class="flex-1 min-w-0 mr-4">
                 <span
                   class="theme-text-goal line-clamp-1"
-                  :class="{ 'line-through opacity-50': goal.completed }"
-                  v-text="goal.category === 'travel' ? extractFlag(goal.text).cleanText : goal.text"
+                  :class="[
+                    { 'line-through opacity-50': goal.completed },
+                    goal.priority === 'must' && 'font-bold text-white',
+                    goal.priority === 'nice' && 'text-white/80',
+                    goal.priority === 'normal' && 'text-white/90',
+                  ]"
+                  v-text="formatGoalText(goal)"
                 />
                 <!-- Progress indicator -->
                 <div
                   v-if="goal.progress"
                   class="flex items-center gap-2 text-sm theme-text-category shrink-0"
+                  :class="[
+                    goal.priority === 'must' && 'text-primary/90',
+                    goal.priority === 'nice' && 'text-muted-foreground/80',
+                  ]"
                 >
-                  <div class="w-20 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    class="w-20 h-1.5 rounded-full bg-white/10 overflow-hidden"
+                    :class="[
+                      goal.priority === 'must' && 'bg-primary/10',
+                      goal.priority === 'nice' && 'bg-muted/10',
+                    ]"
+                  >
                     <div
                       class="h-full theme-progress-bar"
                       :style="{
                         width: `${(goal.progress.current / goal.progress.total) * 100}%`,
                       }"
+                      :class="[
+                        goal.priority === 'must' && '!opacity-100 !bg-primary',
+                        goal.priority === 'nice' && '!opacity-80 !bg-muted-foreground',
+                      ]"
                     />
                   </div>
-                  <span class="tabular-nums whitespace-nowrap">
+                  <span
+                    class="tabular-nums whitespace-nowrap"
+                    :class="[
+                      goal.priority === 'must' && 'text-primary/90',
+                      goal.priority === 'nice' && 'text-muted-foreground/80',
+                    ]"
+                  >
                     {{ goal.progress.current }}/{{ goal.progress.total }}
                     <span v-if="goal.progress.unit">{{ goal.progress.unit }}</span>
                   </span>
@@ -356,6 +402,10 @@ function isEmoji(str: string): boolean {
               <div
                 v-if="goal.completed"
                 class="shrink-0 ml-2 text-emerald-500"
+                :class="[
+                  goal.priority === 'must' && 'text-emerald-400',
+                  goal.priority === 'nice' && 'text-emerald-600',
+                ]"
               >
                 <component
                   :is="icons.CheckCircle2"
@@ -665,5 +715,14 @@ function isEmoji(str: string): boolean {
 .card-content {
   scroll-padding-top: 220px;
   scrollbar-gutter: stable;
+}
+
+/* Add styles for priority indicators */
+.goal-item {
+  transition: all 0.3s ease;
+}
+
+.goal-item.border-l-4 {
+  padding-left: 1.25rem;
 }
 </style>

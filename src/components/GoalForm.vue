@@ -80,8 +80,8 @@ function parseGoals(input: string): Goal[] {
 
   const lines = input.split('\n').map(line => line.trim()).filter(Boolean)
 
-  // Regex to match progress patterns like "read 5/30 books" or "run 3/10 km"
-  const progressRegex = /^([^/]+?)\s*(\d+)\/(\d+)(?:\s+(\w+))?\s*$/
+  // Updated regex to handle priority markers
+  const progressRegex = /^(?:!|~)?\s*([^/]+?)\s*(\d+)\/(\d+)(?:\s+(\w+))?\s*$/
 
   for (const line of lines) {
     if (line.startsWith('#')) {
@@ -94,6 +94,18 @@ function parseGoals(input: string): Goal[] {
       if (goalText) {
         const completed = goalText.endsWith('[x]')
         let cleanText = completed ? goalText.slice(0, -3).trim() : goalText
+        let priority: 'must' | 'nice' | 'normal' = 'normal'
+
+        // Check for priority markers first
+        if (cleanText.startsWith('!')) {
+          priority = 'must'
+          cleanText = cleanText.slice(1).trim()
+        }
+        else if (cleanText.startsWith('~')) {
+          priority = 'nice'
+          cleanText = cleanText.slice(1).trim()
+        }
+
         let progress
 
         // Check for progress pattern
@@ -121,6 +133,7 @@ function parseGoals(input: string): Goal[] {
           text: cleanText,
           category: currentCategory,
           completed,
+          priority,
           progress,
         })
       }
@@ -187,34 +200,35 @@ const showHelp = ref(false)
 // Add help content
 const helpSections = [
   {
-    title: 'Basic Usage',
+    title: '✨ Getting Started',
     items: [
-      'Start each goal with a "-" (dash)',
-      'Group goals under categories using "#category"',
-      'Mark completed goals with [x] at the end',
+      'Type your goals in the text area below',
+      'Each goal starts with a "-" (dash)',
+      'Goals are automatically organized into categories',
     ],
   },
   {
-    title: 'Categories',
+    title: '🎯 Goal Features',
     items: [
-      'Use predefined categories like #health, #career',
-      'Create custom categories with emojis like #🎮, #🎨',
-      'Travel goals automatically get country flags',
+      'Mark goals as complete by adding [x] at the end',
+      'Track progress like "5/30 books" or "25/100 km"',
+      'Travel goals automatically get country flags 🌎',
     ],
   },
   {
-    title: 'Progress Tracking',
+    title: '📝 Categories',
     items: [
-      'Track progress with "X/Y" format',
-      'Example: "Read 5/30 books"',
-      'Optional unit: "Run 25/100 km"',
+      'Click on any category button to quickly add it',
+      'Create custom categories with emojis (#🎮, #🎨)',
+      'Goals without categories go to "General"',
     ],
   },
   {
-    title: 'Example',
+    title: '💡 Example Goals',
     code: `#health
 - Run 25/100 km
 - Meditate daily [x]
+- Drink more water
 
 #🎮 Gaming
 - Complete Zelda
@@ -222,7 +236,47 @@ const helpSections = [
 
 #travel
 - Visit Sweden
-- Explore Japan`,
+- Explore Japan with friends
+
+#career
+- Get promoted to senior role
+- Learn 3/5 new technologies`,
+  },
+  {
+    title: '⭐ Goal Priority',
+    items: [
+      'Add ! before goal text for "Must Achieve" goals',
+      'Add ~ before goal text for "Nice to Have" goals',
+      'No symbol means normal priority',
+    ],
+    code: `#career
+- ! Get promoted to senior role
+- ~ Learn Rust programming
+- Continue current projects`
+  },
+]
+
+// Add quick templates for common goals
+const quickTemplates = [
+  {
+    icon: 'Dumbbell',
+    label: 'Fitness Goal',
+    template: '#health\n- ! Exercise 3/7 days per week\n- Run 0/100 km this year\n- ~ Try yoga',
+  },
+  {
+    icon: 'BookOpen',
+    label: 'Reading Goal',
+    template: '#education\n- ! Read 0/24 books this year\n- Study 30 mins daily\n- ~ Join a book club',
+  },
+  {
+    icon: 'Plane',
+    label: 'Travel Goal',
+    template: '#travel\n- ! Visit Japan\n- ~ Explore Europe\n- Learn basic Japanese',
+  },
+  {
+    icon: 'Brain',
+    label: 'Learning Goal',
+    template: '#skills\n- ! Learn a new language\n- Master 0/3 new skills\n- ~ Start a side project',
   },
 ]
 </script>
@@ -231,7 +285,12 @@ const helpSections = [
   <Card>
     <CardHeader class="pb-4">
       <div class="flex items-center justify-between">
-        <CardTitle>Your Goals</CardTitle>
+        <div class="space-y-1">
+          <CardTitle>Your Goals</CardTitle>
+          <p class="text-sm text-muted-foreground">
+            Write your goals and see them transform into a beautiful vision board
+          </p>
+        </div>
         <Button
           variant="ghost"
           size="icon"
@@ -244,88 +303,99 @@ const helpSections = [
     </CardHeader>
     <CardContent>
       <div class="space-y-6">
-        <!-- Instructions -->
-        <div class="space-y-4">
-          <!-- Categories -->
-          <div>
-            <h3 class="text-sm font-medium mb-2">
-              Available Categories
-            </h3>
-            <div class="grid grid-cols-2 gap-2">
-              <div
-                v-for="(config, category) in CATEGORIES"
-                :key="category"
-                class="flex items-center gap-2 text-sm p-2 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer"
-                @click="() => text += `\n\n#${category}\n- `"
-              >
-                <component
-                  :is="getIconComponent(category)"
-                  class="h-4 w-4"
-                  :class="[!isEmoji(category) && `text-${config.color}-400`]"
-                />
-                <span class="font-medium">#{{ category }}</span>
-              </div>
-              <!-- Add a custom emoji category example -->
-              <div
-                class="flex items-center gap-2 text-sm p-2 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer"
-                @click="() => text += '\n\n#😎\n- '"
-              >
-                <span class="text-base">😎</span>
-                <span class="font-medium">#custom</span>
-              </div>
-            </div>
+        <!-- Quick Start Templates -->
+        <div>
+          <h3 class="text-sm font-medium mb-3">
+            Quick Start Templates
+          </h3>
+          <div class="grid grid-cols-2 gap-2">
+            <Button
+              v-for="template in quickTemplates"
+              :key="template.label"
+              variant="outline"
+              class="h-auto py-3 px-4 justify-start"
+              @click="text += (text ? '\n\n' : '') + template.template"
+            >
+              <component
+                :is="icons[template.icon as keyof typeof icons]"
+                class="mr-2 h-4 w-4"
+              />
+              {{ template.label }}
+            </Button>
           </div>
+        </div>
 
-          <!-- Quick Tips -->
-          <div>
-            <h3 class="text-sm font-medium mb-2">
-              Quick Tips
+        <!-- Categories -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-medium">
+              Categories
             </h3>
-            <div class="grid gap-2">
-              <div
-                v-for="(example, type) in examples"
-                :key="type"
-                class="flex items-center gap-3 text-sm p-2 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer group"
-                @click="() => text += `\n${example}`"
-              >
-                <div class="shrink-0">
-                  <component
-                    :is="type === 'progress' ? icons.BarChart2 : type === 'completed' ? icons.CheckCircle : icons.Hash"
-                    class="h-4 w-4 text-muted-foreground"
-                  />
-                </div>
-                <div class="flex-1">
-                  <code class="text-xs font-mono">{{ example }}</code>
-                  <p class="text-xs text-muted-foreground mt-1">
-                    {{
-                      type === 'progress' ? 'Track numeric progress with X/Y format'
-                      : type === 'completed' ? 'Mark completed goals with [x]'
-                        : 'Group goals under categories with #category'
-                    }}
-                  </p>
-                </div>
-                <span class="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                  Click to add
-                </span>
-              </div>
+            <span class="text-xs text-muted-foreground">
+              Click to add
+            </span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div
+              v-for="(config, category) in CATEGORIES"
+              :key="category"
+              class="flex items-center gap-2 text-sm p-2 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer group"
+              @click="() => text += `\n\n#${category}\n- `"
+            >
+              <component
+                :is="getIconComponent(category)"
+                class="h-4 w-4"
+                :class="[!isEmoji(category) && `text-${config.color}-400`]"
+              />
+              <span class="font-medium flex-1">#{{ category }}</span>
+              <span class="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                Add
+              </span>
+            </div>
+            <!-- Custom emoji category -->
+            <div
+              class="flex items-center gap-2 text-sm p-2 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer group"
+              @click="() => text += '\n\n#🎯\n- '"
+            >
+              <span class="text-base">🎯</span>
+              <span class="font-medium flex-1">Custom</span>
+              <span class="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                Add
+              </span>
             </div>
           </div>
         </div>
 
-        <!-- Text Area -->
+        <!-- Text Area with Enhanced Label -->
         <div>
           <div class="flex items-center justify-between mb-2">
-            <label class="text-sm font-medium">Your Goals</label>
-            <button
-              class="text-xs text-muted-foreground hover:text-primary transition-colors"
+            <div class="space-y-1">
+              <label class="text-sm font-medium">Write Your Goals</label>
+              <p class="text-xs text-muted-foreground">
+                Start with "-" for goals, "#" for categories
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              class="h-8"
               @click="text = ''"
             >
               Clear all
-            </button>
+            </Button>
           </div>
           <Textarea
             v-model="text"
-            placeholder="Start typing your goals..."
+            placeholder="Example:
+#career
+- ! Get promoted to senior role
+- Learn new technologies 2/5
+- ~ Learn a new programming language
+
+#health
+- ! Exercise 3 times per week
+- ~ Try meditation
+- Drink more water [x]"
             class="min-h-[300px] font-mono"
           />
         </div>
@@ -333,22 +403,13 @@ const helpSections = [
     </CardContent>
   </Card>
 
-  <!-- Help Modal -->
+  <!-- Enhanced Help Modal -->
   <Modal
     v-model:open="showHelp"
-    title="How to Use"
-    description="Learn how to use the Goal Generator"
+    title="How to Use the Goal Generator"
+    description="Create and organize your 2025 goals easily"
   >
     <div class="max-w-2xl mx-auto p-6 space-y-8">
-      <div class="space-y-4">
-        <h2 class="text-2xl font-bold tracking-tight">
-          How to Use the Goal Generator
-        </h2>
-        <p class="text-muted-foreground">
-          Create and organize your 2025 goals with our intuitive format system.
-        </p>
-      </div>
-
       <!-- Help Sections -->
       <div class="space-y-6">
         <div
@@ -356,7 +417,7 @@ const helpSections = [
           :key="section.title"
           class="space-y-3"
         >
-          <h3 class="text-lg font-semibold">
+          <h3 class="text-lg font-semibold flex items-center gap-2">
             {{ section.title }}
           </h3>
           <ul
@@ -366,8 +427,10 @@ const helpSections = [
             <li
               v-for="item in section.items"
               :key="item"
+              class="flex gap-2 items-start"
             >
-              {{ item }}
+              <span class="select-none">•</span>
+              <span>{{ item }}</span>
             </li>
           </ul>
           <div
@@ -379,13 +442,21 @@ const helpSections = [
         </div>
       </div>
 
-      <!-- Close button -->
-      <div class="flex justify-end">
+      <!-- Try It Button -->
+      <div class="flex justify-end gap-3">
         <Button
           variant="outline"
           @click="showHelp = false"
         >
           Got it
+        </Button>
+        <Button
+          @click="() => {
+            text = helpSections[3].code
+            showHelp = false
+          }"
+        >
+          Try Example Goals
         </Button>
       </div>
     </div>
