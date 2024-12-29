@@ -5,7 +5,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { CATEGORIES, UNCATEGORIZED } from '@/types'
 import { useLocalStorage } from '@vueuse/core'
 import * as icons from 'lucide-vue-next'
-import { onMounted, watch } from 'vue'
+import { onMounted, watch, ref } from 'vue'
+import { Button } from '@/components/ui/button'
+import Modal from '@/components/ui/modal.vue'
+import { HelpCircle } from 'lucide-vue-next'
 
 const props = defineProps<{
   initialGoals?: Goal[]
@@ -65,6 +68,12 @@ function addCountryFlag(text: string): string | null {
   return null
 }
 
+// Add this function to check if a string is an emoji
+function isEmoji(str: string): boolean {
+  const emojiRegex = /\p{Emoji}/u
+  return emojiRegex.test(str)
+}
+
 function parseGoals(input: string): Goal[] {
   const goals: Goal[] = []
   let currentCategory = UNCATEGORIZED
@@ -76,7 +85,9 @@ function parseGoals(input: string): Goal[] {
 
   for (const line of lines) {
     if (line.startsWith('#')) {
-      currentCategory = line.slice(1).trim().toLowerCase()
+      const categoryText = line.slice(1).trim()
+      // If the category is an emoji, use it directly, otherwise convert to lowercase
+      currentCategory = isEmoji(categoryText) ? categoryText : categoryText.toLowerCase()
     }
     else if (line.startsWith('-')) {
       const goalText = line.slice(1).trim()
@@ -151,8 +162,16 @@ watch(text, (newText) => {
   emit('addGoals', goals)
 }, { immediate: true })
 
-// Get icon component for each category
-function getIconComponent(iconName: string) {
+// Update the getIconComponent function to handle emoji categories
+function getIconComponent(category: string) {
+  if (isEmoji(category)) {
+    // For emoji categories, return a component that just renders the emoji
+    return {
+      render: () => category,
+    }
+  }
+  // For regular categories, use the existing icon lookup
+  const iconName = CATEGORIES[category as keyof typeof CATEGORIES]?.icon || DEFAULT_CATEGORY.icon
   return icons[iconName as keyof typeof icons]
 }
 
@@ -161,12 +180,67 @@ const examples = {
   completed: '- Learn guitar [x]',
   category: '#health\n- Run 25/100 km\n- Meditate daily',
 }
+
+// Add ref for modal state
+const showHelp = ref(false)
+
+// Add help content
+const helpSections = [
+  {
+    title: 'Basic Usage',
+    items: [
+      'Start each goal with a "-" (dash)',
+      'Group goals under categories using "#category"',
+      'Mark completed goals with [x] at the end',
+    ],
+  },
+  {
+    title: 'Categories',
+    items: [
+      'Use predefined categories like #health, #career',
+      'Create custom categories with emojis like #🎮, #🎨',
+      'Travel goals automatically get country flags',
+    ],
+  },
+  {
+    title: 'Progress Tracking',
+    items: [
+      'Track progress with "X/Y" format',
+      'Example: "Read 5/30 books"',
+      'Optional unit: "Run 25/100 km"',
+    ],
+  },
+  {
+    title: 'Example',
+    code: `#health
+- Run 25/100 km
+- Meditate daily [x]
+
+#🎮 Gaming
+- Complete Zelda
+- Reach Diamond rank 5/10 wins
+
+#travel
+- Visit Sweden
+- Explore Japan`,
+  },
+]
 </script>
 
 <template>
   <Card>
     <CardHeader class="pb-4">
-      <CardTitle>Your Goals</CardTitle>
+      <div class="flex items-center justify-between">
+        <CardTitle>Your Goals</CardTitle>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-8 w-8"
+          @click="showHelp = true"
+        >
+          <HelpCircle class="h-5 w-5" />
+        </Button>
+      </div>
     </CardHeader>
     <CardContent>
       <div class="space-y-6">
@@ -185,11 +259,19 @@ const examples = {
                 @click="() => text += `\n\n#${category}\n- `"
               >
                 <component
-                  :is="getIconComponent(config.icon)"
+                  :is="getIconComponent(category)"
                   class="h-4 w-4"
-                  :class="`text-${config.color}-400`"
+                  :class="[!isEmoji(category) && `text-${config.color}-400`]"
                 />
                 <span class="font-medium">#{{ category }}</span>
+              </div>
+              <!-- Add a custom emoji category example -->
+              <div
+                class="flex items-center gap-2 text-sm p-2 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer"
+                @click="() => text += '\n\n#😎\n- '"
+              >
+                <span class="text-base">😎</span>
+                <span class="font-medium">#custom</span>
               </div>
             </div>
           </div>
@@ -250,10 +332,73 @@ const examples = {
       </div>
     </CardContent>
   </Card>
+
+  <!-- Help Modal -->
+  <Modal
+    v-model:open="showHelp"
+    title="How to Use"
+    description="Learn how to use the Goal Generator"
+  >
+    <div class="max-w-2xl mx-auto p-6 space-y-8">
+      <div class="space-y-4">
+        <h2 class="text-2xl font-bold tracking-tight">
+          How to Use the Goal Generator
+        </h2>
+        <p class="text-muted-foreground">
+          Create and organize your 2025 goals with our intuitive format system.
+        </p>
+      </div>
+
+      <!-- Help Sections -->
+      <div class="space-y-6">
+        <div
+          v-for="section in helpSections"
+          :key="section.title"
+          class="space-y-3"
+        >
+          <h3 class="text-lg font-semibold">
+            {{ section.title }}
+          </h3>
+          <ul
+            v-if="section.items"
+            class="space-y-2 list-disc list-inside text-muted-foreground"
+          >
+            <li
+              v-for="item in section.items"
+              :key="item"
+            >
+              {{ item }}
+            </li>
+          </ul>
+          <div
+            v-if="section.code"
+            class="bg-muted/50 rounded-lg p-4"
+          >
+            <pre class="text-sm font-mono whitespace-pre-wrap">{{ section.code }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Close button -->
+      <div class="flex justify-end">
+        <Button
+          variant="outline"
+          @click="showHelp = false"
+        >
+          Got it
+        </Button>
+      </div>
+    </div>
+  </Modal>
 </template>
 
 <style scoped>
 .font-mono {
   font-feature-settings: 'liga' 0;
+}
+
+/* Add smooth transition for modal */
+:deep(.dialog-content) {
+  transition: transform 0.2s ease-out;
 }
 </style>

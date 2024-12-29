@@ -86,10 +86,19 @@ function getCountryFlag(text: string): string | null {
 
 // Helper to safely get icon component
 function getIconComponent(category: string, goalText?: string) {
-  // If it's a travel category goal and contains a country, return null (we'll use the flag instead)
-  if (category === 'travel' && goalText && getCountryFlag(goalText)) {
+  // First check if the category is an emoji
+  if (isEmoji(category)) {
+    return {
+      render: () => category,
+    }
+  }
+
+  // If it's a travel category and has a flag, return null (we'll use the flag)
+  if (category === 'travel' && goalText && extractFlag(goalText).flag) {
     return null
   }
+
+  // Otherwise use the default icon logic
   const config = getCategoryConfig(category)
   return icons[config.icon as keyof typeof icons] || icons[DEFAULT_CATEGORY.icon]
 }
@@ -175,6 +184,12 @@ function extractFlag(text: string): { flag: string | null, cleanText: string } {
   if (match)
     return { flag: match[1], cleanText: match[2] }
   return { flag: null, cleanText: text }
+}
+
+// Add the isEmoji helper function
+function isEmoji(str: string): boolean {
+  const emojiRegex = /\p{Emoji}/u
+  return emojiRegex.test(str)
 }
 </script>
 
